@@ -75,6 +75,12 @@ import rego.v1
 default allow := {"allowed": false, "reason": "just no."}
 
 allow := {"allowed": allowed, "reason": reason} if {
-  [allowed, reason] := va.v1.check({"object_id": "UUID-2", "object_type": "PIXEL", "relation": "member", "subject_id": "UUID-1", "subject_type": "USER"})
+  [allowed, reason] := va.v1.check({
+    "object_id": "UUID-2", 
+    "object_type": "PIXEL", 
+    "relation": "member", 
+    "subject_id": "UUID-1", 
+    "subject_type": "USER"
+  })
 }
 ```
