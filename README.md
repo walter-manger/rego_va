@@ -84,3 +84,25 @@ allow := {"allowed": allowed, "reason": reason} if {
   })
 }
 ```
+
+## Next up -> Writing a plugin to get a user available
+
+```rego
+package authz
+
+import rego.v1
+
+default allow := {"allowed": false, "reason": "just no."}
+
+allow := {"allowed": allowed, "reason": reason} if {
+  [allowed, reason] := va.v1.check({
+    "object_id": "UUID-2", 
+    "object_type": "PIXEL", 
+    "relation": "member", 
+    "subject_id": input.user, # so we can do this instead of having to decode the jwt 
+    "subject_type": "USER"
+  })
+}
+```
+
+It /can/ be done, as it is [over here](https://github.com/open-policy-agent/opa-envoy-plugin/blob/main/envoyauth/request.go#L30).
