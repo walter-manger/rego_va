@@ -64,3 +64,17 @@ va.v1.check({"object_id": "UUID-2", "object_type": "PIXEL", "relation": "member"
 ```
 
 > Yes, these builtins were indeed heavily inspired by Topaz
+
+## Now these are available in the policies
+
+```rego
+package authz
+
+import rego.v1
+
+default allow := {"allowed": false, "reason": "just no."}
+
+allow := {"allowed": allowed, "reason": reason} if {
+  [allowed, reason] := va.v1.check({"object_id": "UUID-2", "object_type": "PIXEL", "relation": "member", "subject_id": "UUID-1", "subject_type": "USER"})
+}
+```
