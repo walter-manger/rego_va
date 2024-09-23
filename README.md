@@ -2,9 +2,12 @@
 
 This is an experiment to see what kind of things having the ability to create custom builtins for Rego could help with. 
 
-It is quite a hassle dealing with `http.send`, so abstracting these calls away from the policies is already a win.
-
 This experiment was the result of me watching some presentations and reading some other implementations of using abstract custom builtins for a better policy writing experience.
+
+OPA out of the box is great for assertion, but without an easy way to give it data, we've had to resort to using `http.send`. `http.send` is a good starting point, but it quickly becomes a hastle when having to consider network responses outside of the highly desired `200 OK`. Abstracting these calls away from the policies and into custom builtins is already a win because we can control what is returned by the builtin, and let clients handle a small set of "reasons" why the data was or was not returned. Further more, taking some time to define a small set of these generic builtins would remove a lot of complexity from our policies.
+
+Another reason to consider the custom builtin approach is that it gives us the ability to iterate on the underlying infrastructure while maintaining a standard interface -- no more churn on OPA functions!. In the beginning, we'd be hitting our own services which query Postgres tables and views. Later, we could come up with more efficient data access solutions, such as things like Redis or [BoltDB](https://github.com/boltdb/bolt) (as [Topaz](https://www.topaz.sh/docs/intro) uses)
+
 
 ## Sources:
 
@@ -85,7 +88,67 @@ allow := {"allowed": allowed, "reason": reason} if {
 }
 ```
 
-## Next up -> Writing a plugin to get a user available
+## Next up -> Solidify VA Builtins
+
+``` rego
+# Return the identity of a user or an org
+[identity, reason] := va.v1.identity({})
+
+# Return a resource
+[resource, reason] := va.v1.resource({})
+
+# Check if a user has access to a specific resource through a relation
+[is_allowed, reason] := va.v1.check({
+    "object_id": "UUID-2", 
+    "object_type": "PIXEL", 
+    "relation": "member", 
+    "subject_id": "UUID-1", 
+    "subject_type": "USER" 
+})
+
+# Possible other
+# Check if a user has access to a specific resource through a relation with specific permissions
+[is_allowed, reason] := va.v1.check_permissions({
+    "object_id": "UUID-2", 
+    "object_type": "PIXEL", 
+    "relation": "member", 
+    "subject_id": "UUID-1", 
+    "subject_type": "USER",
+    "with_permissions": ["DIGITAL.PIXEL.READ"]
+})
+
+# In the case of evaluating if a user can create a new "object_type"
+[is_allowed, reason] := va.v1.check_permissions({
+    # "object_id": "UUID-2",  # new object won't have an id
+    "object_type": "PIXEL", 
+    "relation": "owner", 
+    "subject_id": "UUID-1", 
+    "subject_type": "USER",
+    "with_permissions": ["DIGITAL.PIXEL.CREATE"]
+})
+
+# For filtering results (like Audiences does)
+
+# Get a list of business entities that the subject has access to.
+[entities, reason] := va.v1.graph({
+    "object_types": ["HOLDING_COMPANY", "AGENCY", "ADVERTISER"], 
+    "subject_id": "UUID-1", 
+    "subject_type": "USER",
+    "with_permissions": []
+})
+
+# Get a list of business entities that the subject has access to which have a set of permissions.
+[entities, reason] := va.v1.graph({
+    "object_types": ["HOLDING_COMPANY", "AGENCY", "ADVERTISER"], 
+    "subject_id": "UUID-1", 
+    "subject_type": "USER",
+    "with_permissions": ["DIGITAL.PIXEL.READ", "DIGITAL.PIXEL.WRITE"]
+})
+
+# entities would later become an authz-filter
+```
+
+## Then, Writing a plugin to get a user (and maybe a resource) available
 
 ```rego
 package authz
